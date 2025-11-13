@@ -1,0 +1,47 @@
+# === Node.js / Express ===
+node_modules/
+package-lock.json
+.env
+dist-ssr/
+*.local
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# === Frontend (Vite / React) ===
+frontend/node_modules/
+frontend/.env
+frontend/dist/
+frontend/package-lock.json
+
+# === Subdirectory (if backend is in a folder like /api or /server) ===
+api/node_modules/
+api/.env
+api/package-lock.json
+server/node_modules/
+server/.env
+server/package-lock.json
+
+# === Build / Output Files ===
+dist/
+build/
+
+# === Editor / System Files ===
+.vscode/
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# === Optional: SwiftCart or custom subfolder (if used) ===
+swiftcart/node_modules/
+swiftcart/.env
+swiftcart/package-lock.json
