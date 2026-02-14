@@ -16,8 +16,8 @@ const User = mongoose.model(
       },
       password: {
         type: String,
-        required: [true, "Passowrd is Required"],
-        minLength: [6, "Password Must Be 6 Charactor Long"],
+        required: [true, "Password is Required"],
+        minLength: [6, "Password Must Be 6 Characters Long"],
       },
       isAdmin: {
         type: Boolean,
