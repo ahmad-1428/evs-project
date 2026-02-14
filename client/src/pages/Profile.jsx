@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useLocation } from "react-router-dom";  // Added: For route change detection
 import { updateUserProfile } from "../actions/userActions";
 import {
   MDBContainer,
@@ -11,128 +12,124 @@ import {
   MDBBtn,
   MDBInput,
 } from "mdb-react-ui-kit";
+import { toast } from "react-toastify";
 
 const ProfilePage = () => {
   const dispatch = useDispatch();
-  const { userInfo } = useSelector((state) => state.auth);
-  const { orders } = useSelector((state) => state.orderList || { orders: [] });
+  const location = useLocation();  // Added: Detect route changes
 
-  const [image, setImage] = useState("");
+  // Get current global auth state
+  const { userInfo } = useSelector((state) => state.auth);
+  // Get update status from the update reducer
+  const { loading, success, error } = useSelector((state) => state.userUpdateProfile || {});
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [image, setImage] = useState("");
 
+  // Load data on mount from Redux or localStorage
   useEffect(() => {
-    if (userInfo) {
-      setImage(
-        userInfo.image ||
-          "https://mdbcdn.b-cdn.net/img/Photos/new-templates/bootstrap-chat/ava3.webp"
-      );
-      setName(userInfo.name);
-      setEmail(userInfo.email);
+    console.log("Profile useEffect triggered. userInfo:", userInfo);
+    const storedUserInfo = userInfo || JSON.parse(localStorage.getItem('userInfo'));
+    if (storedUserInfo) {
+      setName(storedUserInfo.name || "");
+      setEmail(storedUserInfo.email || "");
+      console.log("Local name set to:", storedUserInfo.name);
     }
   }, [userInfo]);
+
+  // Auto-refresh on route change (e.g., when navigating to /profile)
+  useEffect(() => {
+    console.log("Route changed to profile - refreshing from localStorage");
+    const storedUserInfo = JSON.parse(localStorage.getItem('userInfo'));
+    if (storedUserInfo) {
+      setName(storedUserInfo.name || "");
+      setEmail(storedUserInfo.email || "");
+    }
+  }, [location.pathname]);  // Added: Triggers on route change
+
+  // Show success toast and force sync
+  useEffect(() => {
+    if (success) {
+      toast.success("Profile Updated Successfully!");
+      console.log("Success toast shown. Updated userInfo:", userInfo);
+      // Force sync from localStorage
+      const updatedUserInfo = JSON.parse(localStorage.getItem('userInfo'));
+      if (updatedUserInfo) {
+        setName(updatedUserInfo.name || "");
+      }
+    }
+  }, [success]);
+
+  // Show error toast
+  useEffect(() => {
+    if (error) {
+      toast.error(`Update failed: ${error}`);
+    }
+  }, [error]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => setImage(reader.result);
+      reader.onloadend = () => {
+        setImage(reader.result);
+        localStorage.setItem("profileImage", reader.result);
+      };
       reader.readAsDataURL(file);
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const updatedUser = { name, email, image };
-    dispatch(updateUserProfile(updatedUser));
+    if (name.trim().length < 3) {
+      toast.error("Name must be at least 3 characters");
+      return;
+    }
+    console.log("Dispatching update with name:", name.trim());
+    dispatch(updateUserProfile({ name: name.trim() }));
   };
 
-  if (!userInfo)
-    return (
-      <MDBContainer className="py-5">
-        <h5>Loading...</h5>
-      </MDBContainer>
-    );
-
   return (
-    <MDBContainer
-      className="py-5"
-      style={{ fontFamily: "'Poppins', sans-serif" }}
-    >
+    <MDBContainer className="py-5">
       <MDBRow className="justify-content-center">
-        {/* Profile Picture */}
-        <MDBCol md="4" className="mb-4">
+        <MDBCol md="4">
           <MDBCard className="text-center">
             <MDBCardBody>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                id="fileInput"
-                hidden
-              />
-              <label htmlFor="fileInput">
+              <input type="file" onChange={handleImageChange} id="fileInput" hidden />
+              <label htmlFor="fileInput" style={{ cursor: "pointer" }}>
                 <MDBCardImage
                   src={image}
-                  alt="avatar"
                   className="rounded-circle"
-                  fluid
-                  style={{
-                    width: "150px",
-                    height: "150px",
-                    objectFit: "cover",
-                    cursor: "pointer",
-                  }}
+                  style={{ width: "150px", height: "150px", objectFit: "cover" }}
                 />
               </label>
-              <p className="mt-3 text-muted">Click image to upload</p>
-              {/* Orders Count */}
-              <h6 className="mt-3 fw-bold" style={{ textTransform: "uppercase" }}>
-                Total Orders:{" "}
-                <span style={{ color: "#000" }}>
-                  {orders ? orders.length : 0}
-                </span>
-              </h6>
+              <p className="mt-2 text-muted">Click image to change locally</p>
             </MDBCardBody>
           </MDBCard>
         </MDBCol>
 
-        {/* Profile Form */}
         <MDBCol md="6">
           <MDBCard>
             <MDBCardBody>
+              <h4>Profile Settings</h4>
               <form onSubmit={handleSubmit}>
-                <MDBRow className="mb-3">
-                  <MDBCol md="12">
-                    <MDBInput
-                      label="Full Name"
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      contrast
-                    />
-                  </MDBCol>
-                </MDBRow>
-
-                <MDBRow className="mb-4">
-                  <MDBCol md="12">
-                    <MDBInput
-                      label="Email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      contrast
-                    />
-                  </MDBCol>
-                </MDBRow>
-
-                <MDBBtn
-                  type="submit"
-                  color="dark"
+                <MDBInput
+                  label="Full Name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="mb-3"
+                  required
+                />
+                <MDBInput label="Email" type="email" value={email} disabled className="mb-4" />
+                <MDBBtn 
+                  type="submit" 
+                  color="dark" 
                   className="w-100"
-                  style={{ textTransform: "uppercase" }}
+                  disabled={loading || name.trim() === userInfo?.name}
                 >
-                  Update Profile
+                  {loading ? "Updating..." : "Update Name"}
                 </MDBBtn>
               </form>
             </MDBCardBody>
