@@ -1,62 +1,102 @@
 import asyncHandler from "express-async-handler";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-
 import User from "../models/user.js";
 
-//PATH      /api/auth/login
-//METHOD    Post
-//ACCESS    Public
-//DESC      Login User
-export const login = asyncHandler(async (req, res) => {
+// @desc    Register a new user
+// @route   POST /api/auth/register
+// @access  Public
+export const register = asyncHandler(async (req, res) => {
+  const { name, email, password } = req.body;
+
+  // Validate input
+  if (!name || !email || !password) {
+    res.status(400);
+    throw new Error("Please provide name, email, and password");
+  }
+
+  // Check if user already exists
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    res.status(400);
+    throw new Error("User already exists");
+  }
+
+  // Hash password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  // Create user
+  const user = await User.create({
+    name,
+    email,
+    password: hashedPassword,
+  });
+
+  if (user) {
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.SECRET_KEY,  // Updated: JWT_SECRET -> SECRET_KEY
+      { expiresIn: "30d" }
+    );
+
+    console.log("User registered and token generated for:", user._id);
+
+    res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      isAdmin: user.isAdmin,
+      token,
+    });
+  } else {
+    res.status(400);
+    throw new Error("Invalid user data");
+  }
+});
+
+// @desc    Auth user & get token
+// @route   POST /api/auth/login
+// @access  Public
+export const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+
+  // Validate input
+  if (!email || !password) {
+    res.status(400);
+    throw new Error("Please provide email and password");
+  }
+
+  // Find user
   const user = await User.findOne({ email });
   if (!user) {
-    res.status(400);
-    throw new Error("Email or Password is Incorrect.");
+    res.status(401);
+    throw new Error("Invalid email or password");
   }
-  const isValid = bcrypt.compareSync(password, user.password);
-  if (!isValid) {
-    res.status(400);
-    throw new Error("Email or Password is Incorrect.");
+
+  // Check password
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  if (!isPasswordValid) {
+    res.status(401);
+    throw new Error("Invalid email or password");
   }
-  return res.json({
+
+  // Generate JWT token
+  const token = jwt.sign(
+    { id: user._id },
+    process.env.SECRET_KEY,  // Updated: JWT_SECRET -> SECRET_KEY
+    { expiresIn: "30d" }
+  );
+
+  console.log("Token generated successfully for user:", user._id);
+
+  // Respond with user data and token
+  res.json({
     _id: user._id,
     name: user.name,
     email: user.email,
     isAdmin: user.isAdmin,
-    token: generateToken(user._id),
+    token,
   });
 });
-
-//PATH      /api/auth/register
-//METHOD    Post
-//ACCESS    Public
-//DESC      Register new user
-export const register = asyncHandler(async (req, res) => {
-  const { name, phone, email, password } = req.body;
-  const salt = bcrypt.genSaltSync();
-  const hashPassword = bcrypt.hashSync(password, salt);
-  const user = new User({
-    name,
-    phone,
-    email,
-    password: hashPassword,
-  });
-  const createdUser = await user.save();
-
-  return res.json({
-    _id: createdUser._id,
-    name: createdUser.name,
-    phone: createdUser.phone,
-    email: createdUser.email,
-    isAdmin: createdUser.isAdmin,
-    token: generateToken(createdUser._id),
-  });
-});
-
-const generateToken = (userId) => {
-  return jwt.sign({ _id: userId }, process.env.SECRET_KEY, {
-    expiresIn: "7d",
-  });
-};
